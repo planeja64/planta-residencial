@@ -1,4 +1,4 @@
-# Gerador de Projeto Residencial - Streamlit
+# Versão inteligente com organização automática de cômodos
 
 import streamlit as st
 import matplotlib.pyplot as plt
@@ -30,61 +30,42 @@ comodos_input = {
     "Escritório": st.sidebar.text_input("Escritório (L,C)", "3.0,2.0")
 }
 
-layout_horizontal = [
-    ["Sala", "Cozinha"],
-    ["Quarto 1", "Quarto 2", "Banheiro"],
-    ["Suíte", "Lavanderia", "Gourmet"],
-    ["Escritório"]
-]
+# Preparar lista de cômodos com dimensões válidas
+comodos_lista = []
+erro = False
+for nome, val in comodos_input.items():
+    try:
+        w, h = map(float, val.split(","))
+        comodos_lista.append({"nome": nome, "largura": w, "altura": h})
+    except:
+        st.error(f"Erro no preenchimento do cômodo: {nome}")
+        erro = True
 
-valid = True
-altura_total = 0
-for linha in layout_horizontal:
-    largura_total = 0
-    max_altura = 0
-    for nome in linha:
-        try:
-            w, h = map(float, comodos_input[nome].split(','))
-            largura_total += w + 0.2
-            if h > max_altura:
-                max_altura = h
-        except:
-            st.error(f"Erro no preenchimento de {nome}")
-            valid = False
-    if largura_total > largura_util:
-        st.error(f"Linha {linha} excede a largura útil ({largura_total:.2f} > {largura_util:.2f})")
-        valid = False
-    altura_total += max_altura + 0.2
-
-if altura_total > comprimento_util:
-    st.error(f"A altura acumulada dos cômodos ({altura_total:.2f}) excede o comprimento útil ({comprimento_util:.2f})")
-    valid = False
-
-if valid:
+if not erro:
     fig, ax = plt.subplots()
-    y_cursor = r_fundos
-    area_total = 0.0
-    for linha in layout_horizontal:
-        x_cursor = r_esq
-        max_altura = 0
-        for nome in linha:
-            try:
-                w, h = map(float, comodos_input[nome].split(','))
-                ax.add_patch(patches.Rectangle((x_cursor, y_cursor), w, h, linewidth=1, edgecolor='black', facecolor='white'))
-                area = w * h
-                area_total += area
-                ax.text(x_cursor + w/2, y_cursor + h/2, f"{nome}\n{area:.1f} m²", ha='center', va='center', fontsize=8)
-                x_cursor += w + 0.2
-                if h > max_altura:
-                    max_altura = h
-            except:
-                continue
-        y_cursor += max_altura + 0.2
+    x_cursor, y_cursor = r_esq, r_fundos
+    linha_altura = 0
+    area_total = 0
+
+    for c in comodos_lista:
+        if x_cursor + c['largura'] > 10 - r_dir:
+            # quebra de linha
+            x_cursor = r_esq
+            y_cursor += linha_altura + 0.2
+            linha_altura = 0
+
+        ax.add_patch(patches.Rectangle((x_cursor, y_cursor), c['largura'], c['altura'], linewidth=1, edgecolor='black', facecolor='white'))
+        ax.text(x_cursor + c['largura']/2, y_cursor + c['altura']/2, f"{c['nome']}\n{c['largura']*c['altura']:.1f} m²", ha='center', va='center', fontsize=8)
+        area_total += c['largura'] * c['altura']
+
+        if c['altura'] > linha_altura:
+            linha_altura = c['altura']
+        x_cursor += c['largura'] + 0.2
 
     ax.set_xlim(0, 10)
     ax.set_ylim(0, 29)
     ax.set_aspect('equal')
-    ax.set_title("Planta Residencial 10x29m - Layout Horizontal")
+    ax.set_title("Planta Residencial 10x29m - Layout Automático")
     ax.set_xlabel("Largura do terreno (m)")
     ax.set_ylabel("Profundidade do terreno (m)")
     ax.grid(True, linestyle='--', linewidth=0.5)
